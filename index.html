@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPPH 96-well 자동 분석기</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px;background:#f5f7fb;color:#243247;font-family:Arial,"Noto Sans KR",sans-serif}
+main{max-width:1500px;margin:auto}.top,.panel{background:#fff;border:1px solid #e1e7ef;border-radius:12px;padding:16px;margin-bottom:14px}
+h1{font-size:23px;margin:0 0 6px}h2{font-size:16px;margin:0 0 12px}.sub,.hint{color:#718096;font-size:12px}
+button,select{font:inherit}button{border:1px solid #d5dde8;border-radius:7px;background:#fff;padding:8px 12px;cursor:pointer;font-size:12px}button.primary{background:#235b9b;color:#fff;border-color:#235b9b}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}.metric{background:#fff;border:1px solid #e1e7ef;border-radius:10px;padding:12px}.metric span{display:block;color:#718096;font-size:11px}.metric strong{display:block;font-size:20px;margin-top:5px}
+.config{display:grid;grid-template-columns:repeat(6,minmax(100px,1fr));gap:8px}.config-card{padding:9px;border:1px solid #dce5ef;border-radius:8px;background:#f7f8fa;font-size:12px}.config-card.pc{background:#f0f6ff}.config-card.sample{background:#effaf5}.config-card select{width:100%;margin-top:7px;padding:6px;border:1px solid #d5dde8;border-radius:5px;background:#fff}.include{display:flex;align-items:center;gap:5px;margin-top:7px;font-size:11px}
+.bulk{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;align-items:center}.legend{font-size:11px;color:#718096;margin-top:12px}.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin:0 4px 0 10px}
+.scroll{overflow:auto;border:1px solid #e0e6ee;border-radius:8px}table.plate{border-collapse:collapse;min-width:880px;width:100%;font-size:11px;text-align:center} .plate th{background:#f2f5f9;padding:8px 4px}.plate td{padding:4px;border:1px solid #edf0f4}.plate .rowname{background:#f2f5f9;font-weight:bold}.plate .mix{background:#f8fafc;min-width:75px;font-weight:bold;line-height:1.6}.plate input{width:100%;min-width:48px;height:31px;text-align:center;border:1px solid #dce3eb;border-radius:5px;padding:3px;font-size:11px}.role-blank{background:#f5f6f8}.role-pc{background:#f0f6ff}.role-sample{background:#effaf5}.divider td{border-top:2px solid #cbd5e1}
+.formula,.notice{padding:10px 12px;border-radius:8px;background:#f1f6fc;font-size:12px;margin:10px 0}.notice.warn{background:#fff7e9;color:#855b16}.notice.error{background:#fff0ef;color:#a13d36}
+.results{border-collapse:collapse;width:100%;min-width:800px;font-size:12px}.results th{background:#f2f5f9;text-align:left;padding:10px 8px;white-space:nowrap}.results td{padding:10px 8px;border-bottom:1px solid #edf0f4;white-space:nowrap}.tag{padding:3px 6px;border-radius:4px;font-size:10px}.tag.pc{background:#e5efff;color:#315f99}.tag.sample{background:#e1f4e9;color:#28704c}.rate{font-weight:bold;color:#176b49}.status{white-space:normal!important;font-size:10px;color:#8a641f;min-width:110px}
+label{font-size:11px;color:#64748b}select#digits{padding:6px;border:1px solid #d5dde8;border-radius:6px;background:white}
+@media(max-width:700px){body{padding:9px}.config{grid-template-columns:repeat(3,minmax(0,1fr))}.metrics{gap:6px}.metric{padding:9px}.metric strong{font-size:16px}h1{font-size:19px}}
+</style>
+</head>
+<body>
+<main>
+<section class="top">
+<h1>DPPH 항산화능 자동 분석기</h1><div class="sub">96-well plate · DW 보정 · 라디칼 소거능 자동 계산</div>
+<div class="bulk"><button id="clear">입력값 초기화</button></div>
+</section>
+<div class="metrics">
+<div class="metric"><span>대조군 평균 · 1열 E~H</span><strong id="control">—</strong><span id="controlN">입력값 없음</span></div>
+<div class="metric"><span>계산 선택 열</span><strong id="selected">0열</strong><span>양성대조군 및 시료</span></div>
+<div class="metric"><span>계산 완료 결과</span><strong id="valid">0개</strong><span>소거능 계산 가능 열</span></div>
+</div>
+<section class="panel">
+<h2>STEP 01 · 열 배치 및 계산 대상 설정</h2>
+<div id="configs" class="config"></div>
+<div class="bulk"><button id="all">전체 선택</button><button id="none">전체 해제</button><span class="hint">1열은 대조군 기준으로 고정됩니다.</span></div>
+<div class="legend"><i class="dot" style="background:#e8ebef"></i>Blank / 대조군 <i class="dot" style="background:#dceaff"></i>양성대조군 <i class="dot" style="background:#d8f1e3"></i>시료</div>
+</section>
+<section class="panel">
+<h2>STEP 02 · 96-well 흡광도 입력</h2>
+<div class="scroll"><table class="plate"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+<p class="hint">A~D행: DW 혼합군 · E~H행: DPPH 혼합군 · 빈 셀은 평균에서 제외되며 0은 유효한 값입니다.</p>
+</section>
+<section class="panel">
+<h2>STEP 03 · 자동 계산 결과</h2>
+<div class="bulk"><label for="digits">소수점 자릿수</label><select id="digits"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+<div class="formula"><b>보정흡광도</b> = DPPH 혼합군 평균 − DW 혼합군 평균<br><br><b>라디칼 소거능(%)</b> = [(대조군 평균 − 보정흡광도) / 대조군 평균] × 100<br><span class="hint">대조군 평균은 1열 E~H행의 평균입니다.</span></div>
+<div id="notice" class="notice">흡광도 값을 입력하면 결과가 자동으로 갱신됩니다.</div>
+<div class="scroll"><table class="results"><thead><tr><th>구분</th><th>열</th><th>DW 평균</th><th>DW n</th><th>DPPH 평균</th><th>DPPH n</th><th>보정흡광도</th><th>라디칼 소거능(%)</th><th>상태</th></tr></thead><tbody id="result"><tr><td colspan="9">계산 결과가 여기에 표시됩니다.</td></tr></tbody></table></div>
+<div class="bulk"><button class="primary" id="exportResults">결과 CSV 다운로드</button><button id="exportPlate">전체 입력값 CSV 다운로드</button></div>
+<p class="hint">반복값은 혼합군별 최대 4개입니다. 4개 미만이면 입력된 값으로 계산하고 경고를 표시합니다.</p>
+</section>
+</main>
+<script>
+const rows='ABCDEFGH'.split(''),dwRows='ABCD'.split(''),dpphRows='EFGH'.split('');
+const roles={},checks={};let cache=[],controlData={mean:null,count:0};
+const $=id=>document.getElementById(id);
+function buildConfigs(){
+ let html='';
+ for(let c=1;c<=12;c++){
+  if(c===1){roles[c]='blank';html+='<div class="config-card"><b>1열 · 기준</b><p>Blank / 대조군</p><small>E~H 평균 사용</small></div>';continue}
+  roles[c]=c<=5?'pc':'sample';
+  html+=`<div class="config-card ${roles[c]}" id="card${c}"><b>${c}열</b><label class="include"><input type="checkbox" id="check${c}" checked> 계산 대상</label><select id="role${c}"><option value="none">미지정</option><option value="pc" ${roles[c]==='pc'?'selected':''}>양성대조군</option><option value="sample" ${roles[c]==='sample'?'selected':''}>시료</option></select></div>`;
+ }
+ $('configs').innerHTML=html;
+ for(let c=2;c<=12;c++){
+  checks[c]=$('check'+c);
+  $('role'+c).addEventListener('change',e=>{
+   roles[c]=e.target.value;checks[c].disabled=roles[c]==='none';
+   if(roles[c]==='none')checks[c].checked=false;else checks[c].checked=true;
+   $('card'+c).className='config-card '+(roles[c]==='none'?'':roles[c]);colorPlate();update();
+  });
+  checks[c].addEventListener('change',update);
+ }
+}
+function buildPlate(){
+ $('thead').innerHTML='<tr><th>행</th><th>혼합군</th>'+Array.from({length:12},(_,i)=>`<th>${i+1}</th>`).join('')+'</tr>';
+ $('tbody').innerHTML=rows.map((r,i)=>{
+  let html=`<tr class="${i===4?'divider':''}"><th class="rowname">${r}</th>`;
+  if(i===0)html+='<td class="mix" rowspan="4">DW 혼합군<br>DW + 시료</td>';
+  if(i===4)html+='<td class="mix" rowspan="4">DPPH 혼합군<br>DPPH + 시료</td>';
+  for(let c=1;c<=12;c++)html+=`<td data-col="${c}" class="role-${c===1?'blank':roles[c]}"><input type="number" step="any" inputmode="decimal" id="well-${r}-${c}" aria-label="${r}${c}"></td>`;
+  return html+'</tr>';
+ }).join('');
+ document.querySelectorAll('.plate input').forEach(el=>el.addEventListener('input',update));
+}
+function colorPlate(){document.querySelectorAll('.plate td[data-col]').forEach(td=>{let c=+td.dataset.col;td.className='role-'+(c===1?'blank':roles[c]==='none'?'blank':roles[c]);});}
+function mean(c,rr){
+ let vals=rr.map(r=>{let v=$(`well-${r}-${c}`).value.trim();return v===''?null:Number(v)}).filter(v=>v!==null&&Number.isFinite(v));
+ return {mean:vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null,count:vals.length};
+}
+function selected(){return Object.keys(checks).map(Number).filter(c=>roles[c]!=='none'&&checks[c].checked)}
+function fmt(v){return v===null||!Number.isFinite(v)?'—':v.toFixed(+$('digits').value)}
+function update(){
+ controlData=mean(1,dpphRows);$('control').textContent=fmt(controlData.mean);$('controlN').textContent=controlData.count+'/4개 입력';
+ let cols=selected();$('selected').textContent=cols.length+'열';
+ cache=cols.map(c=>{
+  let d=mean(c,dwRows),p=mean(c,dpphRows);
+  let corrected=d.mean===null||p.mean===null?null:p.mean-d.mean;
+  let rate=corrected===null||controlData.mean===null||controlData.mean===0?null:(controlData.mean-corrected)/controlData.mean*100;
+  let warnings=[];
+  if(d.count<4)warnings.push('DW 반복값 '+d.count+'/4');
+  if(p.count<4)warnings.push('DPPH 반복값 '+p.count+'/4');
+  if(controlData.count<4)warnings.push('대조군 반복값 '+controlData.count+'/4');
+  if(d.count===0||p.count===0)warnings.push('평균 계산 불가');
+  if(controlData.mean===null)warnings.push('대조군 데이터 없음');
+  if(controlData.mean===0)warnings.push('대조군 평균 0');
+  return {c,role:roles[c],d,p,corrected,rate,warnings};
+ });
+ $('valid').textContent=cache.filter(x=>x.rate!==null).length+'개';
+ $('result').innerHTML=cache.length?cache.map(x=>`<tr><td><span class="tag ${x.role}">${x.role==='pc'?'양성대조군':'시료'}</span></td><td><b>${x.c}열</b></td><td>${fmt(x.d.mean)}</td><td>${x.d.count}/4</td><td>${fmt(x.p.mean)}</td><td>${x.p.count}/4</td><td><b>${fmt(x.corrected)}</b></td><td class="rate">${fmt(x.rate)}</td><td class="status">${x.warnings.length?x.warnings.join(' · '):'정상'}</td></tr>`).join(''):'<tr><td colspan="9">선택된 열이 없습니다.</td></tr>';
+ let n=$('notice');n.className='notice';
+ if(controlData.mean===null){n.classList.add('error');n.textContent='대조군 평균을 계산할 수 없습니다. 1열 E~H행에 값을 입력하세요.'}
+ else if(controlData.mean===0){n.classList.add('error');n.textContent='대조군 평균이 0이므로 소거능을 계산할 수 없습니다.'}
+ else if(!cols.length)n.textContent='계산 대상 열을 선택하세요.';
+ else if(cache.some(x=>x.warnings.length)||controlData.count<4){n.classList.add('warn');n.textContent='일부 반복값이 4개 미만입니다. 입력된 값만으로 계산했으며 상태 열의 경고를 확인하세요.'}
+ else n.textContent=`계산 완료: ${cols.length}개 열을 각각 독립적으로 계산했습니다.`;
+}
+function csvDownload(name,data){
+ const csv='\uFEFF'+data.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('all').onclick=()=>{Object.keys(checks).forEach(c=>{if(roles[c]!=='none')checks[c].checked=true});update()};
+$('none').onclick=()=>{Object.values(checks).forEach(x=>x.checked=false);update()};
+$('digits').onchange=update;
+$('clear').onclick=()=>{if(confirm('96개 웰의 입력값을 모두 지울까요? 열 배치와 선택 설정은 유지됩니다.')){document.querySelectorAll('.plate input').forEach(x=>x.value='');update()}};
+$('exportResults').onclick=()=>{
+ let d=+$('digits').value,data=[['DPPH 분석 결과'],['대조군 평균',controlData.mean===null?'':controlData.mean.toFixed(d)],['대조군 반복수',controlData.count+'/4'],[],['구분','열','DW 평균','DW 반복수','DPPH 평균','DPPH 반복수','보정흡광도','라디칼 소거능(%)','상태']];
+ cache.forEach(x=>data.push([x.role==='pc'?'양성대조군':'시료',x.c+'열',x.d.mean===null?'':x.d.mean.toFixed(d),x.d.count+'/4',x.p.mean===null?'':x.p.mean.toFixed(d),x.p.count+'/4',x.corrected===null?'':x.corrected.toFixed(d),x.rate===null?'':x.rate.toFixed(d),x.warnings.join(' / ')||'정상']));
+ csvDownload('DPPH_분석결과.csv',data);
+};
+$('exportPlate').onclick=()=>{
+ let data=[['행','열','구분','혼합군','흡광도']];
+ rows.forEach(r=>{for(let c=1;c<=12;c++){let role=c===1?'Blank/대조군':roles[c]==='pc'?'양성대조군':roles[c]==='sample'?'시료':'미지정';data.push([r,c+'열',role,dwRows.includes(r)?'DW 혼합군':'DPPH 혼합군',$(`well-${r}-${c}`).value])}});
+ csvDownload('DPPH_96well_입력데이터.csv',data);
+};
+buildConfigs();buildPlate();update();
+</script>
+</body>
+</html>
